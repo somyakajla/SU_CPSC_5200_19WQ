@@ -65,7 +65,7 @@ namespace restapi.Controllers
                 return NotFound();
             }
 
-            if (timecard.Status != TimecardStatus.Cancelled && timecard.Status != TimecardStatus.Draft)
+            if (timecard.CanBeDeleted() == false)
             {
                     return StatusCode(409, new InvalidStateError() { });
             }
@@ -123,7 +123,7 @@ namespace restapi.Controllers
         }
 
         [HttpPost("{timecardId}/lines/{lineId}")]
-        public IActionResult UpdateLine(string timecardId, string lineId, [FromBody] TimecardLine timecardLine)
+        public IActionResult ReplaceLine(string timecardId, Guid lineId, [FromBody] TimecardLine timecardLine)
         {
             Timecard timecard = Database.Find(timecardId);
 
@@ -132,7 +132,38 @@ namespace restapi.Controllers
                 return NotFound();
             }
 
-            return Ok();
+            if (timecard.HasLine(lineId) == false)
+            {
+                // this might be better served by using some other 4xx error
+                // because there's actually a problem with both the resource
+                // we're updating and the request
+                return NotFound();
+            }
+
+            var result = timecard.ReplaceLine(lineId, timecardLine);
+            return Ok(result);
+        }
+
+        [HttpPatch("{timecardId}/lines/{lineId}")]
+        public IActionResult UpdateLine(string timecardId, Guid lineId, [FromBody] dynamic timecardLine)
+        {
+            Timecard timecard = Database.Find(timecardId);
+
+            if (timecard == null)
+            {
+                return NotFound();
+            }
+
+            if (timecard.HasLine(lineId) == false)
+            {
+                // this might be better served by using some other 4xx error
+                // because there's actually a problem with both the resource
+                // we're updating and the request
+                return NotFound();
+            }
+
+            var result = timecard.ReplaceLine(lineId, timecardLine);
+            return Ok(result);
         }
 
         [HttpGet("{id}/transitions")]

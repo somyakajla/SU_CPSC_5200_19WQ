@@ -33,7 +33,7 @@ namespace restapi
                 .AddJsonOptions(o => {
                     o.SerializerSettings.Converters = new List<JsonConverter>()
                     {
-                        new StringEnumConverter() { CamelCaseText = true }
+                        new StringEnumConverter(new CamelCaseNamingStrategy(), true)
                     };
                     o.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
                     o.SerializerSettings.Formatting = Formatting.Indented;

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace restapi.Models
 {
@@ -164,6 +165,37 @@ namespace restapi.Models
             Lines.Add(annotatedLine);
 
             return annotatedLine;
+        }
+
+        public bool CanBeDeleted()
+        {
+            return (Status == TimecardStatus.Cancelled || Status == TimecardStatus.Draft);
+        }
+
+        public bool HasLine(Guid lineId)
+        {
+            return Lines
+                .Any(l => l.UniqueIdentifier == lineId);
+        }
+
+        public TimecardLine ReplaceLine(Guid lineId, TimecardLine line)
+        {
+            var targetLine = Lines
+                .FirstOrDefault(l => l.UniqueIdentifier == lineId);
+
+            // this should blindly replace the public portions of
+            // the line, which might leave the line in a bad state
+            return targetLine.Update(line);
+        }
+
+        public TimecardLine ReplaceLine(Guid lineId, JObject line)
+        {
+            var targetLine = Lines
+                .FirstOrDefault(l => l.UniqueIdentifier == lineId);
+
+            // this should blindly replace the public portions of
+            // the line, which might leave the line in a bad state
+            return targetLine.Update(line);
         }
     }
 }
