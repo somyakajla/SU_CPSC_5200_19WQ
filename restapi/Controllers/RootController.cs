@@ -37,5 +37,22 @@ namespace restapi.Controllers
                 }
             };
         }
+
+        [Route("~/")]
+        [HttpPost]
+        [Produces(ContentTypes.Timesheet)]
+        [ProducesResponseType(typeof(Timecard), 200)]
+        public Timecard Create([FromBody] DocumentResource resource)
+        {
+            var timecard = new Timecard(resource.Resource);
+
+            var entered = new Entered() { Resource = resource.Resource };
+
+            timecard.Transitions.Add(new Transition(entered));
+
+            Database.Add(timecard);
+
+            return timecard;
+        }
     }
 }

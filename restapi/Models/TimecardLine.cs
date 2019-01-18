@@ -1,7 +1,6 @@
 using System;
 using System.Globalization;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace restapi.Models
 {
@@ -21,8 +20,8 @@ namespace restapi.Models
     public class AnnotatedTimecardLine : TimecardLine
     {
         private DateTime workDate;
-        private DateTime periodFrom;
-        private DateTime periodTo;
+        private DateTime? periodFrom;
+        private DateTime? periodTo;
 
         public AnnotatedTimecardLine(TimecardLine line)
         {
@@ -33,48 +32,8 @@ namespace restapi.Models
             Project = line.Project;
 
             Recorded = DateTime.UtcNow;
-
-            SetupPeriodValues();
-
+            workDate = FirstDateOfWeekISO8601(line.Year, line.Week).AddDays((int)line.Day - 1);
             UniqueIdentifier = Guid.NewGuid();
-        }
-
-        public TimecardLine Update(TimecardLine line)
-        {
-            Week = line.Week;
-            Year = line.Year;
-            Day = line.Day;
-            Hours = line.Hours;
-            Project = line.Project;
-
-            SetupPeriodValues();
-
-            return this;
-        }
-
-        public TimecardLine Update(JObject line)
-        {
-            // this is a little too brittle for my taste because of the
-            // hard-coded strings, but it does work to show that you need
-            // to step outside of the type system to make this work
-            //
-            // and, because this is brittle, it should be wrapped in an
-            // appropriate try/catch to throw a 4xx error back
-
-            Week = (int)(line.SelectToken("week") ?? Week);
-            Year = (int)(line.SelectToken("year") ?? Year);
-            var day = line.SelectToken("day");
-            Hours = (float)(line.SelectToken("hours") ?? Hours);
-            Project = (string)(line.SelectToken("project") ?? Project);
-
-            if (day != null) {
-                Day = (DayOfWeek)Enum.Parse(typeof(DayOfWeek), (string)day, true);
-            }
-
-            // if the date components change, let's update
-            SetupPeriodValues();
-
-            return this;
         }
 
         public DateTime Recorded { get; set; }
@@ -91,9 +50,9 @@ namespace restapi.Models
 
         public Guid UniqueIdentifier { get; set; }
 
-        public string PeriodFrom => periodFrom.ToString("yyyy-MM-dd");
+        public string PeriodFrom { get => periodFrom?.ToString("yyyy-MM-dd"); }
 
-        public string PeriodTo => periodTo.ToString("yyyy-MM-dd");
+        public string PeriodTo { get => periodTo?.ToString("yyyy-MM-dd"); }
 
         public string Version { get; set; } = "line-0.1";
 
@@ -116,12 +75,18 @@ namespace restapi.Models
 
             return result.AddDays(-3);
         }
+    }
 
-        private void SetupPeriodValues()
-        {
-            workDate = FirstDateOfWeekISO8601(Year, Week).AddDays((int)Day - 1);
-            periodFrom = FirstDateOfWeekISO8601(Year, Week);
-            periodTo = periodFrom.AddDays(7);
-        }
+    public class TimecardLineRequest
+    {
+        public int? Week { get; set; }
+
+        public int? Year { get; set; }
+
+        public DayOfWeek? Day { get; set; }
+
+        public float? Hours { get; set; }
+
+        public string Project { get; set; }
     }
 }

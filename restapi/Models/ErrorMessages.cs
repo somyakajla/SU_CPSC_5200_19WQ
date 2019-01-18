@@ -6,6 +6,18 @@ namespace restapi.Models
 
         public string Message { get => "Transition not valid for current state"; }
     }
+    public class InvalidUser
+    {
+        public int ErrorCode { get => 401; }
+
+        public string Message { get => "User is not valid"; }
+    }
+    public class NotAuthorized
+    {
+        public int ErrorCode { get => 403; }
+
+        public string Message { get => "This user is not permitted"; }
+    }
 
     public class EmptyTimecardError
     {

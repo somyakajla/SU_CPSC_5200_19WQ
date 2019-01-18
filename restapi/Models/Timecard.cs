@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace restapi.Models
 {
@@ -11,28 +10,28 @@ namespace restapi.Models
     {
         public Timecard(int resource)
         {
-            Resource = resource;
             UniqueIdentifier = Guid.NewGuid();
             Identity = new TimecardIdentity();
             Lines = new List<AnnotatedTimecardLine>();
-            Transitions = new List<Transition> { 
-                new Transition(new Entered() { Resource = resource }) 
+            Transitions = new List<Transition> {
+                new Transition(new Entered() { Resource = resource })
             };
         }
 
         public int Resource { get; private set; }
-        
+
         [JsonProperty("id")]
         public TimecardIdentity Identity { get; private set; }
 
-        public TimecardStatus Status { 
-            get 
-            { 
+        public TimecardStatus Status
+        {
+            get
+            {
                 return Transitions
                     .OrderByDescending(t => t.OccurredAt)
                     .First()
                     .TransitionedTo;
-            } 
+            }
         }
 
         public DateTime Opened;
@@ -52,7 +51,7 @@ namespace restapi.Models
         public IList<Transition> Transitions { get; set; }
 
         public IList<ActionLink> Actions { get => GetActionLinks(); }
-    
+
         [JsonProperty("documentation")]
         public IList<DocumentLink> Documents { get => GetDocumentLinks(); }
 
@@ -65,45 +64,51 @@ namespace restapi.Models
             switch (Status)
             {
                 case TimecardStatus.Draft:
-                    links.Add(new ActionLink() {
+                    links.Add(new ActionLink()
+                    {
                         Method = Method.Post,
                         Type = ContentTypes.Cancellation,
                         Relationship = ActionRelationship.Cancel,
                         Reference = $"/timesheets/{Identity.Value}/cancellation"
                     });
 
-                    links.Add(new ActionLink() {
+                    links.Add(new ActionLink()
+                    {
                         Method = Method.Post,
                         Type = ContentTypes.Submittal,
                         Relationship = ActionRelationship.Submit,
                         Reference = $"/timesheets/{Identity.Value}/submittal"
                     });
 
-                    links.Add(new ActionLink() {
+                    links.Add(new ActionLink()
+                    {
                         Method = Method.Post,
                         Type = ContentTypes.TimesheetLine,
                         Relationship = ActionRelationship.RecordLine,
                         Reference = $"/timesheets/{Identity.Value}/lines"
                     });
-                
+
                     break;
 
                 case TimecardStatus.Submitted:
-                    links.Add(new ActionLink() {
+                    links.Add(new ActionLink()
+                    {
                         Method = Method.Post,
                         Type = ContentTypes.Cancellation,
                         Relationship = ActionRelationship.Cancel,
                         Reference = $"/timesheets/{Identity.Value}/cancellation"
                     });
 
-                    links.Add(new ActionLink() {
+                    links.Add(new ActionLink()
+                    {
                         Method = Method.Post,
                         Type = ContentTypes.Rejection,
                         Relationship = ActionRelationship.Reject,
                         Reference = $"/timesheets/{Identity.Value}/rejection"
                     });
 
-                    links.Add(new ActionLink() {
+                    links.Add(new ActionLink()
+                    {
                         Method = Method.Post,
                         Type = ContentTypes.Approval,
                         Relationship = ActionRelationship.Approve,
@@ -128,7 +133,8 @@ namespace restapi.Models
         {
             var links = new List<DocumentLink>();
 
-            links.Add(new DocumentLink() {
+            links.Add(new DocumentLink()
+            {
                 Method = Method.Get,
                 Type = ContentTypes.Transitions,
                 Relationship = DocumentRelationship.Transitions,
@@ -137,7 +143,8 @@ namespace restapi.Models
 
             if (this.Lines.Count > 0)
             {
-                links.Add(new DocumentLink() {
+                links.Add(new DocumentLink()
+                {
                     Method = Method.Get,
                     Type = ContentTypes.TimesheetLine,
                     Relationship = DocumentRelationship.Lines,
@@ -147,7 +154,8 @@ namespace restapi.Models
 
             if (this.Status == TimecardStatus.Submitted)
             {
-                links.Add(new DocumentLink() {
+                links.Add(new DocumentLink()
+                {
                     Method = Method.Get,
                     Type = ContentTypes.Transitions,
                     Relationship = DocumentRelationship.Submittal,
@@ -167,35 +175,29 @@ namespace restapi.Models
             return annotatedLine;
         }
 
-        public bool CanBeDeleted()
+        public AnnotatedTimecardLine FindLine(string lineId)
         {
-            return (Status == TimecardStatus.Cancelled || Status == TimecardStatus.Draft);
+            return Lines.Where(s => s.UniqueIdentifier.ToString() == lineId).FirstOrDefault();
         }
 
-        public bool HasLine(Guid lineId)
+        public AnnotatedTimecardLine UpdateLine(string lineId, TimecardLineRequest timecardLine)
         {
-            return Lines
-                .Any(l => l.UniqueIdentifier == lineId);
+            var line = FindLine(lineId);
+            line.Day = timecardLine.Day ?? line.Day;
+            line.Week = timecardLine.Week ?? line.Week;
+            line.Project = timecardLine.Project == "" ? line.Project : timecardLine.Project;
+            line.Year = timecardLine.Year ?? line.Year;
+            line.Hours = timecardLine.Hours ?? line.Hours;
+            return line;
         }
 
-        public TimecardLine ReplaceLine(Guid lineId, TimecardLine line)
+        public AnnotatedTimecardLine ReplaceLine(string lineId, TimecardLine timecardLine)
         {
-            var targetLine = Lines
-                .FirstOrDefault(l => l.UniqueIdentifier == lineId);
+            var line = FindLine(lineId);
+            Lines.Remove(line);
 
-            // this should blindly replace the public portions of
-            // the line, which might leave the line in a bad state
-            return targetLine.Update(line);
-        }
-
-        public TimecardLine ReplaceLine(Guid lineId, JObject line)
-        {
-            var targetLine = Lines
-                .FirstOrDefault(l => l.UniqueIdentifier == lineId);
-
-            // this should blindly replace the public portions of
-            // the line, which might leave the line in a bad state
-            return targetLine.Update(line);
+            var annotatedLine = AddLine(timecardLine);
+            return annotatedLine;
         }
     }
 }
